@@ -1,62 +1,41 @@
-# openai.api_key = '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'
-# TOKEN = '6260578840:AAF8IvgYmk2fMYBt3wHBC3Zzg_0v-XLiSKg'
-import telegram
 import openai
-from telegram.ext import Updater, CommandHandler, MessageHandler
-from telegram.ext.filters import MessageFilter
-
-# Установить токен для работы с Telegram API
+import telebot
+import logging
+import os
+import time
 TOKEN = '6260578840:AAF8IvgYmk2fMYBt3wHBC3Zzg_0v-XLiSKg'
-bot = telegram.Bot(token=TOKEN)
-
-# Установить ключ API для работы с CHAT GPT
-openai.api_key = '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'
-
-class TextFilter(MessageFilter):
-    def filter(self, message):
-        return message.text is not None and not message.text.startswith('/')
-
-def generate_response(text):
-    # Настроить параметры запроса
-    prompt = f"Q: {text}\nA:"
-
-    # Создать запрос к CHAT GPT
+openai.api_key = openai.api_key = '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'
+bot = telebot.TeleBot(TOKEN)
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message,
+                 'Привет!\nЯ ChatGPT Telegram Bot\U0001F916\nЗадай мне любой вопрос и я постараюсь на него ответиь')
+def generate_response(prompt):
     response = openai.Completion.create(
-        engine='davinci',
+        model="text-davinci-003",
         prompt=prompt,
-        max_tokens=50,
-        n=1,
-        stop=None,
-        temperature=0.7
+        temperature=0.5,
+        max_tokens=1000,
+        top_p=1.0,
+        frequency_penalty=0.5,
+        presence_penalty=0.0
     )
-
-    # Получить сгенерированный ответ от CHAT GPT
-    answer = response.choices[0].text.strip()
-
-    return answer
-
-def handle_message(update, context):
-    # Получить текст сообщения от пользователя
-    user_text = update.message.text
-
-    # Сгенерировать ответ на основе запроса пользователя
-    bot_response = generate_response(user_text)
-
-    # Отправить ответ пользователю
-    update.message.reply_text(bot_response)
-
-def main():
-    # Создать экземпляр класса Updater и добавить обработчики
-
-    dispatcher = updater.dispatcher
-    message_handler = MessageHandler(TextFilter())
-    dispatcher.add_handler(message_handler)
-
-    # Запустить бота
-    start_polling()
-
-    # Остановить бота при нажатии Ctrl-C
-    updater.idle()
-
-if __name__ == '__main__':
-    main()
+    return response["choices"][0]["text"]
+@bot.message_handler(commands=['bot'])
+def command_message(message):
+    prompt = message.text
+    response = generate_response(prompt)
+    bot.reply_to(message, text=response)
+@bot.message_handler(func=lambda _: True)
+def handle_message(message):
+    prompt = message.text
+    response = generate_response(prompt)
+    bot.send_message(chat_id=message.from_user.id, text=response)
+print('ChatGPT Bot is working')
+while True:
+    try:
+        bot.polling()
+    except (telebot.apihelper.ApiException, ConnectionError) as e:
+        logging.error(str(e))
+        time.sleep(5)
+        continue
